@@ -1,4 +1,5 @@
 exports.handler = async (event, context) => {
+  // Solo permitir POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -6,16 +7,26 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const { message, apiKey } = JSON.parse(event.body);
-
-  if (!apiKey) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'API key required' })
-    };
-  }
-
   try {
+    // Parse el body - IMPORTANTE: el frontend envía "message" no "messages"
+    const { message, apiKey } = JSON.parse(event.body);
+
+    // Validar que tengamos los datos necesarios
+    if (!apiKey) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'API key required' })
+      };
+    }
+
+    if (!message) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Message required' })
+      };
+    }
+
+    // Llamar a Anthropic API
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -32,6 +43,7 @@ exports.handler = async (event, context) => {
 
     const data = await response.json();
 
+    // Si Anthropic responde con error, pasarlo al frontend
     if (!response.ok) {
       return {
         statusCode: response.status,
@@ -42,6 +54,7 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Respuesta exitosa
     return {
       statusCode: 200,
       headers: {
@@ -51,6 +64,7 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
+    console.error('Function error:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ 
